@@ -1,0 +1,31 @@
+Overall this took me between 20 and 25 hours, and is not a working solution. Explained below.
+
+My way of approaching this was to deploy everything separately via known ARM templates, or where possible, create the resource in the portal to better understand the way everything is set up and what my changes would affect.
+
+I started off with creating a resourcegroup and tested out tagging at that stage. I then created the datalake gen 2 storage account and the set up an AAD group for RBAC via the IAM options. The gen 2 storage account was created using PowerShell, with some modifications to the code to make use of splatting, still operating under the assumption that I could export the storage account as a template at the end. Discovered an Azure PowerShell bug with Hiearchal Name Space, as it would not allow me to set the value to "true" in the splat, and according to MS docs the value should've been "true". Setting value to 1 worked instead.
+
+I made a decision on the storage accout to consider HA vs DR, consulting https://docs.microsoft.com/en-us/azure/storage/blobs/data-lake-storage-best-practices as a resource, and picked GRS initially. I am not sure if this would be overkill for my solution (an assumption would be that it was global, which was my justification) so would use ZRS next time for HA instead. 
+
+I deployed a keyvault using the ARM template in my repo, generated a key and a secret, and then configured the access policies within the Portal to allow access my storage account to have access. The IAM RBAC permissions were configured to use the same group as the Datalake, but in hindsight I would've had a group per resource. The same was done to allow access to the web app. I played around with the storage account, creating a filesystem and a messaging queue. 
+
+I struggled to figure out how to get a web app that would interact with my storage account, and in the end I could not figure it out. I wanted to try and deploy something with Docker that would use Apache Spark or another open source program that directly interacts with the storage account but I couldn't get it working. Intitially my web app was a static HTML website, but now it is a WordPress on a VM. I've left the docker-vm inside the .json template. I wanted to get into pipelines and CI/CD, not sure if that would have had use here except to constantly update my web app.
+
+At this point a few things were working well together, but not the storage account and the web app. I decided to cut my losses and move on to preparing a master ARM template containing the working pieces, hoping to come back to it afterwards for the web app. I first got stuck with the deploy.ps1 script, because it was saying that my parameters were set to null (true in the parameters.json used) but the parameters were specified in the template. I skipped using deploy.ps1 and used PowerShell instead to deploy. 
+
+What I got stuck on here was that the keyvault and the datalake storage account couldn't be exported, or more precisely, the accesspolicies for the keyvault couldn't be exported and so was failing to deploy when ran in the template. I found something to use to get the accesspolicy and convert it to something usable in a template (https://www.codit.eu/blog/key-vault-deployment-removes-access-policies/?country_sel=nl) but did not have time to get into CI/CD or using the pipeline to deploy the first part as a task following the documentation. 
+
+Overall, what is in the repo is not a working solution but it will deploy some pieces of the puzzle, and within the repo are the necessary json files, and the PoSh script to deploy the storage account. I would really appreciate some feedback on what I could've done to achieve the goal. This is my first time working with Azure resources like this and it was really enjoyable, frustrating at times, and interesting. It was great to actually get something working at the various stages of the assessment. Thanks for the opportunity.
+
+Some additional things that had to be done:
+
+Self-signed cert for PowerShell scripts
+
+Getting Az and AzureRM working together
+
+Creating the virtual network and load balancer using PowerShell
+
+Creating and allocating tag groups and values
+
+
+
+
